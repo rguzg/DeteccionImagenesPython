@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from random import randrange
 
-# Definición del tipo de diccionario que retornara ContarObjetos 
+# Definición del tipo de diccionario que retornará ContarObjetos 
 class Conteo_Objetos(TypedDict):
     imagen_marcada: np.ndarray
     imagen_binaria: np.ndarray
@@ -70,17 +70,14 @@ def ObtenerVecindad(coordenadas: List, resolucion: Tuple, tipo_vecindad: Literal
 
     return vecinos
 
-def ContarObjetos(ruta_imagen: str, threshold: int) -> Conteo_Objetos:
-    imagen = cv2.imread(ruta)
+def ContarObjetos(ruta_imagen: str, threshold: int, vecindad: Literal[4,8]) -> Conteo_Objetos:
+    imagen = cv2.imread(ruta_imagen)
     
     if(not isinstance(imagen, np.ndarray)):
         raise FileNotFoundError
 
     if(not isinstance(threshold, int) or threshold < 0 or threshold > 255):
         raise ValueError("El valor del threshold debe ser del rango 0-255")
-
-    if(vecindad not in [4,8]):
-        raise ValueError("El valor de la vecindad debe ser 4 u 8")
 
     grises = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
     _, binaria = cv2.threshold(grises, threshold, 255, cv2.THRESH_BINARY)
@@ -94,6 +91,9 @@ def ContarObjetos(ruta_imagen: str, threshold: int) -> Conteo_Objetos:
     objetos = 0
     pila = Stack()
 
+    # El conteo de objetos funciona buscando un pixel blanco, al encontrarlo, busca en todos los vecinos
+    # de ese pixel otros pixeles blancos hasta encontrar un pixel negro. El conjunto de pixeles blancos
+    # que haya encontrado se considera como un objeto encontrado
     for fila in range(binaria.shape[0]):
         for columna in range(binaria.shape[1]):
             if binaria[fila][columna] != 0:
@@ -105,7 +105,7 @@ def ContarObjetos(ruta_imagen: str, threshold: int) -> Conteo_Objetos:
 
                 while (len(pila)):
                     coordenadas = pila.pop()
-                    vecinos = ObtenerVecindad(coordenadas, binaria.shape, 8)
+                    vecinos = ObtenerVecindad(coordenadas, binaria.shape, vecindad)
 
                     for vecino in vecinos:
                         if binaria[vecino[0], vecino[1]] != 0:
@@ -116,7 +116,7 @@ def ContarObjetos(ruta_imagen: str, threshold: int) -> Conteo_Objetos:
     colores = []
 
     for i in range(objetos + 1):
-        colores.append([randrange(255), randrange(255), randrange(255)])
+        colores.append([randrange(255) + i, randrange(255) + i, randrange(255) + i])
 
     for fila in range(imagen.shape[0]):
         for columna in range(imagen.shape[1]):
@@ -130,7 +130,10 @@ try:
     threshold = int(input("Ingresa el threshold que utilizar en la imagen: "))
     vecindad = int(input("Ingresa el tipo de vecindad a utilizar (4 u 8): "))
 
-    resultado = ContarObjetos(ruta, threshold)
+    if(vecindad != 4 and vecindad != 8):
+        raise ValueError("El valor de la vecindad debe ser 4 u 8")
+
+    resultado = ContarObjetos(ruta, threshold, vecindad)
 
     print(f"Se encontraron: {resultado['objetos']} objetos")
 
@@ -141,7 +144,7 @@ try:
     plt.subplot(2,1,2)
     plt.imshow(resultado['imagen_marcada'], 'gray')
     plt.title("Imagen Marcada")
-    
+
     plt.figtext(0, 0, f"Threshold: {threshold}. {resultado['objetos']} objetos encontrados. Vecindad de {vecindad}", fontsize = 10)
     
     plt.show()
